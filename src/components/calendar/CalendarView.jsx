@@ -14,12 +14,12 @@ import {
     isToday
 } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Video, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video, Calendar as CalendarIcon, Edit3 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ProjectForm } from '../projects/ProjectForm';
 
 export function CalendarView() {
-    const { projects, updateProjectStatus } = useProjects();
+    const { projects } = useProjects();
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
@@ -40,9 +40,9 @@ export function CalendarView() {
     const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
 
     const statusColors = {
-        '制作中': 'bg-blue-500/10 text-blue-500 border-blue-500/30',
-        'チェック待ち': 'bg-orange-500/10 text-orange-500 border-orange-500/30',
-        '完遂': 'bg-green-500/10 text-green-500 border-green-500/30',
+        '制作中': 'bg-blue-500/10 text-blue-500 border-blue-500/30 hover:bg-blue-500/20',
+        'チェック待ち': 'bg-orange-500/10 text-orange-500 border-orange-500/30 hover:bg-orange-500/20',
+        '完遂': 'bg-green-500/10 text-green-500 border-green-500/30 hover:bg-green-500/20',
     };
 
     const statusDotColors = {
@@ -51,17 +51,32 @@ export function CalendarView() {
         '完遂': 'bg-green-500',
     };
 
-    // モーダルと選択日付のステート
+    // モーダルと選択日付・プロジェクトのステート
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDateForNew, setSelectedDateForNew] = useState(null);
+    const [selectedProjectForEdit, setSelectedProjectForEdit] = useState(null);
 
     const handleDayClick = (day) => {
+        setSelectedProjectForEdit(null); // 新規追加モード
         setSelectedDateForNew(format(day, 'yyyy-MM-dd'));
+        setIsModalOpen(true);
+    };
+
+    const handleProjectClick = (e, project) => {
+        e.stopPropagation(); // 日付セルのクリックイベントを発火させない
+        setSelectedDateForNew(null);
+        setSelectedProjectForEdit(project); // 編集モード
         setIsModalOpen(true);
     };
 
     const handleSuccess = () => {
         setIsModalOpen(false);
+        setSelectedProjectForEdit(null);
+    };
+
+    const handleCancel = () => {
+        setIsModalOpen(false);
+        setSelectedProjectForEdit(null);
     };
 
     return (
@@ -69,7 +84,7 @@ export function CalendarView() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">カレンダー</h1>
-                    <p className="text-foreground/60 mt-1">納品日ベースで案件のスケジュールを管理します (日付クリックで追加)</p>
+                    <p className="text-foreground/60 mt-1">納品日ベースでスケジュールを管理。日付クリックで追加、案件クリックで編集できます</p>
                 </div>
 
                 <div className="flex items-center space-x-4 bg-card border border-border rounded-xl p-1 shadow-sm">
@@ -119,47 +134,51 @@ export function CalendarView() {
                                 key={day.toString()}
                                 onClick={() => handleDayClick(day)}
                                 className={cn(
-                                    "min-h-[120px] p-2 border-r border-b border-border transition-all cursor-pointer hover:bg-muted/20 hover:shadow-inner group relative",
+                                    "min-h-[120px] p-2 border-r border-b border-border transition-all cursor-pointer hover:bg-muted/20 group relative",
                                     !isSameMonth(day, monthStart) && "bg-muted/5 opacity-50 text-foreground/40",
                                     (dayIdx + 1) % 7 === 0 && "border-r-0",
-                                    dayIdx >= days.length - 7 && "border-b-0"
+                                    dayIdx >= days.length - 7 && "border-b-0",
+                                    isToday(day) && "bg-primary/5 border-primary/20"
                                 )}
                             >
                                 <div className="flex justify-between items-center mb-1">
                                     <span className={cn(
-                                        "w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium",
-                                        isToday(day) ? "bg-primary text-primary-foreground font-bold shadow-sm" : ""
+                                        "w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium transition-all",
+                                        isToday(day) ? "bg-primary text-primary-foreground font-bold shadow-md scale-110" : "group-hover:text-primary"
                                     )}>
                                         {format(day, 'd')}
                                     </span>
 
                                     {dayProjects.length > 0 && (
-                                        <span className="text-xs font-medium text-foreground/50">
+                                        <span className="text-xs font-semibold text-foreground/40 bg-muted px-2 py-0.5 rounded-full">
                                             {dayProjects.length}件
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="space-y-1.5 mt-2 relative z-10">
+                                <div className="space-y-1.5 mt-2 relative z-10 p-0.5">
                                     {dayProjects.map(project => (
                                         <div
                                             key={project.id}
-                                            onClick={(e) => e.stopPropagation()} // 案件クリック時はモーダルを開かない
+                                            onClick={(e) => handleProjectClick(e, project)}
                                             className={cn(
-                                                "px-2 py-1.5 text-xs rounded-md border truncate font-medium flex items-center justify-between",
-                                                statusColors[project.status] || 'bg-card border-border text-foreground'
+                                                "px-2 py-1.5 text-xs rounded-md border truncate font-medium flex items-center justify-between cursor-pointer transition-all shadow-sm",
+                                                statusColors[project.status] || 'bg-card border-border text-foreground hover:bg-muted'
                                             )}
-                                            title={`${project.title} (${project.status})`}
+                                            title={`${project.title} (${project.status}) - クリックで編集`}
                                         >
                                             <span className="truncate pr-1">{project.title}</span>
-                                            <div className={cn("w-2 h-2 rounded-full shrink-0 shadow-sm", statusDotColors[project.status])} />
+                                            <div className="flex items-center shrink-0">
+                                                <div className={cn("w-2 h-2 rounded-full shadow-sm mr-1.5", statusDotColors[project.status])} />
+                                                <Edit3 className="w-3 h-3 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* ホバー時の+アイコン */}
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-primary transition-opacity pointer-events-none">
-                                    <span className="text-xl leading-none">+</span>
+                                    <span className="text-2xl font-light leading-none">+</span>
                                 </div>
                             </div>
                         );
@@ -187,13 +206,13 @@ export function CalendarView() {
                 </div>
             </div>
 
-            {/* 案件追加モーダル */}
+            {/* 案件管理モーダル (追加/編集共通) */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
                     {/* 背景オーバーレイ */}
                     <div
-                        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-                        onClick={() => setIsModalOpen(false)}
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-all"
+                        onClick={handleCancel}
                     ></div>
 
                     {/* モーダルコンテンツ */}
@@ -201,7 +220,8 @@ export function CalendarView() {
                         <ProjectForm
                             isModal={true}
                             initialDeliveryDate={selectedDateForNew}
-                            onCancel={() => setIsModalOpen(false)}
+                            initialData={selectedProjectForEdit}
+                            onCancel={handleCancel}
                             onSuccess={handleSuccess}
                         />
                     </div>

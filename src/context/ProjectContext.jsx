@@ -138,8 +138,37 @@ export function ProjectProvider({ children }) {
         }
     };
 
+    const editProject = async (id, updatedData) => {
+        // Prepare data for DB and State
+        const month = updatedData.deliveryDate ? updatedData.deliveryDate.substring(0, 7) : format(new Date(), 'yyyy-MM');
+        const updatedProject = { ...updatedData, id, month };
+
+        // Optimistic UI update
+        const previousProjects = [...projects];
+        setProjects((prev) => prev.map((p) => (p.id === id ? updatedProject : p)));
+
+        if (supabase) {
+            try {
+                const { error } = await supabase.from('projects').update({
+                    title: updatedData.title,
+                    category: updatedData.category,
+                    price: updatedData.price,
+                    hours: updatedData.hours,
+                    delivery_date: updatedData.deliveryDate,
+                    status: updatedData.status
+                }).eq('id', id);
+                if (error) throw error;
+            } catch (error) {
+                console.error('Error updating project in Supabase:', error);
+                // Rollback
+                setProjects(previousProjects);
+                alert('通信エラーが発生しました。案件を更新できませんでした。');
+            }
+        }
+    };
+
     return (
-        <ProjectContext.Provider value={{ projects, addProject, updateProjectStatus, deleteProject, isLoading }}>
+        <ProjectContext.Provider value={{ projects, addProject, editProject, updateProjectStatus, deleteProject, isLoading }}>
             {children}
         </ProjectContext.Provider>
     );
