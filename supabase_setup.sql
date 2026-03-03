@@ -16,6 +16,7 @@ create table
 -- 本番環境ではRow Level Security (RLS)を有効にし、適切な認証ポリシーを設定してください
 alter table public.projects enable row level security;
 
+drop policy if exists "Enable all access for anonymous users" on public.projects;
 create policy "Enable all access for anonymous users"
   on public.projects
   for all
